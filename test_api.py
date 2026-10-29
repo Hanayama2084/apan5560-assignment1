@@ -38,6 +38,15 @@ def main():
     r = client.post("/classify", files={"file": ("note.txt", b"hello", "text/plain")})
     print("non-image file ->", r.status_code, r.json())
 
+    # Assignment 3: generate digits with the GAN and save the PNG to look at
+    r = client.get("/generate_digits", params={"num_samples": 16, "seed": 7})
+    Path("generated_digits.png").write_bytes(r.content)
+    print("/generate_digits ->", r.status_code, r.headers["content-type"], f"{len(r.content)} bytes, saved to generated_digits.png")
+    same = client.get("/generate_digits", params={"num_samples": 16, "seed": 7}).content == r.content
+    print("same seed gives the same digits ->", same)
+    r = client.get("/generate_digits", params={"num_samples": 0})
+    print("num_samples=0 ->", r.status_code)
+
 
 if __name__ == "__main__":
     main()

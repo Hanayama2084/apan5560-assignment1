@@ -9,3 +9,7 @@ wheels/
 # Virtual environments
 .venv
 data/
+
+# macOS and local test output
+.DS_Store
+generated_digits.png

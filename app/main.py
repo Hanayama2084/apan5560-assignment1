@@ -1,21 +1,26 @@
 """FastAPI entry point.
 
 Exposes the bigram text generator from the Module 3 class activity, the
-spaCy word embedding model added for Assignment 1, and the CIFAR10 CNN
-image classifier added for Assignment 2.
+spaCy word embedding model added for Assignment 1, the CIFAR10 CNN
+image classifier added for Assignment 2, and the MNIST GAN digit generator
+added for Assignment 3.
 """
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Query, Response, UploadFile
 from PIL import UnidentifiedImageError
 from pydantic import BaseModel, Field
 
 from app.bigram_model import BigramModel
+from app.digit_generator import DigitGenerator
 from app.embedding_model import EmbeddingModel
 from app.image_classifier import ImageClassifier
 
 app = FastAPI(
     title="SPS GenAI API",
-    description="Bigram text generation, spaCy word embeddings, and CIFAR10 image classification.",
+    description=(
+        "Bigram text generation, spaCy word embeddings, CIFAR10 image classification, "
+        "and GAN-generated MNIST digits."
+    ),
 )
 
 # Sample corpus for the bigram model (from the Module 3 class activity)
@@ -31,6 +36,7 @@ corpus = [
 bigram_model = BigramModel(corpus)
 embedding_model = EmbeddingModel("en_core_web_md")
 image_classifier = ImageClassifier("models/cnn_cifar10.pth")
+digit_generator = DigitGenerator("models/gan_generator.pth")
 
 
 class TextGenerationRequest(BaseModel):
@@ -85,3 +91,17 @@ async def classify_image(file: UploadFile = File(..., description="An image file
     except UnidentifiedImageError:
         raise HTTPException(status_code=400, detail="The uploaded file is not a valid image.")
     return {"filename": file.filename, **result}
+
+
+@app.get(
+    "/generate_digits",
+    response_class=Response,
+    responses={200: {"content": {"image/png": {}}, "description": "A PNG grid of generated digits."}},
+)
+def generate_digits(
+    num_samples: int = Query(default=10, ge=1, le=64, description="How many digits to draw"),
+    seed: int | None = Query(default=None, description="Optional seed; the same seed gives the same digits"),
+):
+    """Draw new handwritten digits with the GAN generator trained on MNIST."""
+    png_bytes = digit_generator.generate_png(num_samples, seed)
+    return Response(content=png_bytes, media_type="image/png")
